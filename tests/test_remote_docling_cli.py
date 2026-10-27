@@ -16,7 +16,7 @@ from book_to_skill.parsers.docling_remote import RemoteDoclingError, RemoteDocli
 
 @pytest.fixture(autouse=True)
 def clean_remote_environment(monkeypatch):
-    for suffix in ("URL", "TIMEOUT", "API_KEY"):
+    for suffix in ("URL", "TIMEOUT", "API_KEY", "ASYNC"):
         monkeypatch.delenv("BOOK_TO_SKILL_DOCLING_" + suffix, raising=False)
 
 
@@ -165,7 +165,8 @@ def test_pdf_inspector_forwards_remote_options(pdf, monkeypatch):
     assert calls == [(pdf, "technical", "no", options)]
 
 
-def test_cli_smoke_uploads_without_local_docling_and_sanitizes(tmp_path):
+@pytest.mark.parametrize("use_async", [False, True])
+def test_cli_smoke_uploads_without_local_docling_and_sanitizes(tmp_path, use_async):
     received = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -173,6 +174,21 @@ def test_cli_smoke_uploads_without_local_docling_and_sanitizes(tmp_path):
             received.append((self.path, self.headers["X-Api-Key"], json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
             self.send_response(200)
             self.end_headers()
+            if use_async:
+                self.wfile.write(json.dumps({"task_id": "smoke-task", "task_status": "pending"}).encode())
+                return
+            self.write_result()
+
+        def do_GET(self):
+            assert self.headers["X-Api-Key"] == "test-secret"
+            self.send_response(200)
+            self.end_headers()
+            if self.path == "/v1/status/poll/smoke-task":
+                self.wfile.write(json.dumps({"task_id": "smoke-task", "task_status": "success"}).encode())
+            elif self.path == "/v1/result/smoke-task":
+                self.write_result()
+
+        def write_result(self):
             self.wfile.write(json.dumps({
                 "status": "success",
                 "document": {"md_content": "# Chapter 1\n\nSynthetic\u200b text.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |"},
@@ -189,13 +205,17 @@ def test_cli_smoke_uploads_without_local_docling_and_sanitizes(tmp_path):
     output = tmp_path / "output"
     env = dict(os.environ, BOOK_SKILL_WORKDIR=str(output), BOOK_TO_SKILL_DOCLING_API_KEY="test-secret")
     try:
-        result = subprocess.run([
+        command = [
             sys.executable, "scripts/extract.py", str(pdf), "--mode", "technical",
             "--docling-url", f"http://127.0.0.1:{server.server_port}", "--install-missing", "yes",
-        ], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True, timeout=15)
+        ]
+        if use_async:
+            command.append("--docling-async")
+        result = subprocess.run(command, cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True, timeout=15)
         assert result.returncode == 0, result.stdout + result.stderr
         assert len(received) == 1
-        assert received[0][0:2] == ("/v1/convert/source", "test-secret")
+        endpoint = "/v1/convert/source/async" if use_async else "/v1/convert/source"
+        assert received[0][0:2] == (endpoint, "test-secret")
         assert received[0][2]["sources"][0]["filename"] == "synthetic.pdf"
         text = (output / "full_text.txt").read_text()
         assert "| A | B |" in text and "\u200b" not in text
