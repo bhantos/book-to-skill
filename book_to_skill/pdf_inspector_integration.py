@@ -205,9 +205,14 @@ def install_pdf_inspector_hook(utils_module: Any | None = None) -> None:
     if getattr(original, "_book_to_skill_pdf_inspector_hook", False):
         return
 
-    def wrapped(input_path: Path, extraction_mode: str, install_mode: str) -> dict[str, Any]:
+    def wrapped(input_path: Path, extraction_mode: str, install_mode: str, docling_options=None) -> dict[str, Any]:
         inspection_key = str(input_path.resolve())
         _INSPECTIONS.pop(inspection_key, None)
+
+        if docling_options is not None and extraction_mode == "technical":
+            # Forward explicit backend configuration; technical PDFs must not
+            # be satisfied by the optional native-Markdown shortcut.
+            return original(input_path, extraction_mode, install_mode, docling_options)
 
         if not _looks_like_pdf(input_path):
             return original(input_path, extraction_mode, install_mode)

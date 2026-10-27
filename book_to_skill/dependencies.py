@@ -264,7 +264,7 @@ def prepare_dependencies(ext: str, extraction_mode: str, install_mode: str) -> N
         )
 
 
-def run_dependency_check() -> int:
+def run_dependency_check(remote_docling: bool = False) -> int:
     """Scan every optional dependency across all formats and print a status
     report plus the exact command to install whatever is missing.
 
@@ -278,6 +278,10 @@ def run_dependency_check() -> int:
 
     for group in DEPENDENCY_GROUPS:
         print(f"  {group['label']}")
+
+        if remote_docling and group["modules"] == ["docling"]:
+            print("      → remote configured (not contacted); local Docling is not required\n")
+            continue
 
         present_modules = [m for m in group["modules"] if python_module_available(m)]
         absent_modules = [m for m in group["modules"] if not python_module_available(m)]
