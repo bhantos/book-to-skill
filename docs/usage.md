@@ -82,6 +82,17 @@ reason. If no text extractor is installed, that source fails extraction. Scanned
 PDFs still require OCR first. `--check` reports remote configuration without
 contacting the server; other PDF entries describe optional local fallbacks.
 
+#### Run mocked integration tests
+
+The integration tests mock HTTP responses while exercising CLI configuration,
+sync/async requests, polling retries, Markdown sanitization, table preservation,
+and backend/fallback metadata. They run in the normal test suite without a
+Docling service, model downloads, or additional runtime dependencies.
+
+```bash
+python3 -m pytest -q tests/test_docling_mocked_cli.py
+```
+
 ---
 
 ## 💬 What people do with it
