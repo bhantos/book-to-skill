@@ -59,7 +59,19 @@ v1 JSON file-source API and requests Markdown, table structure, and no OCR, matc
 local Docling. Base URLs may include a proxy path prefix; credentials belong in
 the API-key environment variable. HTTPS uses normal certificate verification;
 redirects are rejected. Files are base64-encoded in memory, so allow additional
-worker memory for large PDFs. Async polling is not supported in this version.
+worker memory for large PDFs.
+
+For long books or shared queues, add `--docling-async` or set
+`BOOK_TO_SKILL_DOCLING_ASYNC=true`. The client submits once, polls status every
+second, then fetches the result. In async mode `--docling-timeout` is the budget
+for submission, queueing, polling, and retrieval (default: 300 seconds); each
+request's socket timeout is at most 30 seconds and the remaining budget. The
+budget is checked between requests. Transient polling connection errors and HTTP
+429/502/503/504 responses are retried within that budget. Submission and result
+retrieval are never retried, avoiding duplicate jobs or single-use result loss.
+Timing out does not cancel the server job. `--no-docling-async` overrides the
+environment to retain synchronous requests. The environment accepts `true`/`1`
+or `false`/`0`; synchronous requests remain the default.
 
 Text mode and other formats still use local extraction. Without a URL, technical
 PDFs still use local Docling. Remote mode does not prompt to install local PDF

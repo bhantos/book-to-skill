@@ -1525,8 +1525,9 @@ def print_usage() -> None:
     print(f"Supported formats: {supported_formats_message()}", file=sys.stderr)
     print(
         "Remote technical PDFs: --docling-url URL [--docling-timeout SECONDS]\n"
+        "  --docling-async polls long-running jobs; --no-docling-async uses sync.\n"
         "  Or BOOK_TO_SKILL_DOCLING_URL; optional BOOK_TO_SKILL_DOCLING_API_KEY\n"
-        "  and BOOK_TO_SKILL_DOCLING_TIMEOUT (default: 300 seconds).\n"
+        "  BOOK_TO_SKILL_DOCLING_TIMEOUT (default: 300 seconds), and BOOK_TO_SKILL_DOCLING_ASYNC.\n"
         "  Uploads PDFs to the configured server only in --mode technical.",
         file=sys.stderr,
     )
