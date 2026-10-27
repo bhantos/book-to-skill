@@ -239,7 +239,7 @@ book-to-skill/
 
 book-to-skill ships **no book content** — not a single page. It's a converter you point at files you already own.
 
-- **Processing is local.** Extraction and analysis run on your machine. Your files are never uploaded by this tool. (If your agent's model runs in the cloud, the text you feed it follows that provider's normal data terms — same as any prompt.)
+- **Processing is local by default.** Opting into [remote Docling](docs/usage.md#remote-docling-for-technical-pdfs) uploads technical PDFs to your configured server. Otherwise extraction runs on your machine. (If your agent's model runs in the cloud, the text you feed it follows that provider's normal data terms — same as any prompt.)
 - **You use your own copy.** Bring a book you bought, docs your company owns, or papers you have the right to read.
 - **The output is your notes.** A generated skill is a structured, synthesized derivative — framework names, definitions, takeaways — not a reproduction of the text. The skill explicitly never copies raw passages (see Quality Rule #7). Treat it like handwritten study notes: yours, for personal use.
 - **Don't redistribute.** Publishing or sharing a generated skill of a copyrighted work can infringe the rights holder. Keep skills of third-party books private. Internal docs, your own writing, and openly-licensed material are fine to share within the bounds of their license.

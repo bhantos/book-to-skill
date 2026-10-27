@@ -14,6 +14,8 @@ import zipfile
 from pathlib import Path
 
 from book_to_skill.exceptions import ExtractionError
+from book_to_skill.docling_options import parse_docling_options
+from book_to_skill.parsers.docling_remote import RemoteDoclingOptions, extract_with_remote_docling
 
 from book_to_skill.config import (
     OUTPUT_DIR,
@@ -1189,7 +1191,10 @@ def reuse_is_safe(current_inputs, metadata, current_mode):
     return True, "workdir intact and all sources match the current inputs"
 
 
-def extract_single_file(input_path: Path, extraction_mode: str, install_mode: str) -> dict:
+def extract_single_file(
+    input_path: Path, extraction_mode: str, install_mode: str,
+    docling_options: RemoteDoclingOptions | None = None,
+) -> dict:
     """Extract text and metadata from a single file path."""
     input_str = str(input_path)
 
@@ -1240,7 +1245,11 @@ def extract_single_file(input_path: Path, extraction_mode: str, install_mode: st
                 f"Unsupported format '{ext or '<none>'}'. Supported: {supported_formats_message()}"
             )
             
-    prepare_dependencies(ext, extraction_mode, install_mode)
+    remote_docling = ext == ".pdf" and extraction_mode == "technical" and docling_options is not None
+    # Remote workers need no local PDF packages. On failure, use only installed
+    # text fallbacks rather than prompting to install local model dependencies.
+    if not remote_docling:
+        prepare_dependencies(ext, extraction_mode, install_mode)
     
     if ext in CALIBRE_EBOOK_EXTENSIONS and not shutil.which("ebook-convert"):
         raise ExtractionError(
@@ -1293,19 +1302,23 @@ def extract_single_file(input_path: Path, extraction_mode: str, install_mode: st
                 "  ocrmypdf input.pdf output.pdf"
             )
         if extraction_mode == "technical":
-            print("Mode: technical — using Docling (layout-aware)...")
+            backend = "Remote Docling" if remote_docling else "Docling"
+            print(f"Mode: technical — using {backend} (layout-aware)...")
             try:
-                text = extract_with_docling(input_str)
+                text = (
+                    extract_with_remote_docling(input_str, docling_options)
+                    if remote_docling else extract_with_docling(input_str)
+                )
             except Exception as exc:
-                fallback_reason = "docling_failed"
+                fallback_reason = "docling_remote_failed" if remote_docling else "docling_failed"
                 print(
-                    f"WARNING: Docling failed ({type(exc).__name__}: {exc}); "
+                    f"WARNING: {backend} failed ({type(exc).__name__}: {exc}); "
                     "using the PDF text fallback chain.",
                     file=sys.stderr,
                 )
                 text = None
             if text and text.strip():
-                method = "docling"
+                method = "docling_remote" if remote_docling else "docling"
                 print("OK")
             else:
                 if fallback_reason is None:
@@ -1510,6 +1523,13 @@ def print_usage() -> None:
         file=sys.stderr,
     )
     print(f"Supported formats: {supported_formats_message()}", file=sys.stderr)
+    print(
+        "Remote technical PDFs: --docling-url URL [--docling-timeout SECONDS]\n"
+        "  Or BOOK_TO_SKILL_DOCLING_URL; optional BOOK_TO_SKILL_DOCLING_API_KEY\n"
+        "  and BOOK_TO_SKILL_DOCLING_TIMEOUT (default: 300 seconds).\n"
+        "  Uploads PDFs to the configured server only in --mode technical.",
+        file=sys.stderr,
+    )
 
 
 def main():
@@ -1519,14 +1539,20 @@ def main():
         print_usage()
         sys.exit(0)
 
-    if "--check" in sys.argv[1:]:
-        sys.exit(run_dependency_check())
+    try:
+        argv, docling_options = parse_docling_options(sys.argv)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if "--check" in argv[1:]:
+        sys.exit(run_dependency_check(remote_docling=docling_options is not None))
 
     if len(sys.argv) < 2:
         print_usage()
         sys.exit(1)
         
-    raw_input_paths, extraction_mode, install_mode = parse_arguments(sys.argv)
+    raw_input_paths, extraction_mode, install_mode = parse_arguments(argv)
     
     if not raw_input_paths:
         print("ERROR: No input document, folder, or glob pattern specified.", file=sys.stderr)
@@ -1546,7 +1572,10 @@ def main():
     
     for file_path in input_files:
         try:
-            res = extract_single_file(file_path, extraction_mode, install_mode)
+            if docling_options is None:
+                res = extract_single_file(file_path, extraction_mode, install_mode)
+            else:
+                res = extract_single_file(file_path, extraction_mode, install_mode, docling_options)
         except ExtractionError as exc:
             print(f"WARNING: Skipping {file_path.name}: {exc}", file=sys.stderr)
             errors.append((file_path, str(exc)))

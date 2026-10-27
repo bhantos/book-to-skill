@@ -2,11 +2,15 @@
 
 ## Scope
 
-book-to-skill is a local conversion tool. It reads document files you point it at
-and writes skill files to your skills directory. It does **not** upload your files,
-phone home, or run a network service. The main security surface is:
+book-to-skill uses local extraction by default. It reads document files you point
+it at and writes skill files to your skills directory. Explicitly configuring
+`--docling-url` or `BOOK_TO_SKILL_DOCLING_URL` uploads technical PDFs to that
+docling-serve server. Only configure a server you trust with the documents;
+use HTTPS for remote connections. The client verifies certificates and refuses
+redirects. It does not phone home or run a network service. The main security surface is:
 
 - the Python extraction code (parsing untrusted document files), and
+- the optional remote Docling connection (document uploads and returned Markdown), and
 - the optional dependencies it can install on request (`pip install …` when you
   choose `--install-missing yes`).
 

@@ -38,6 +38,38 @@ After the skill is created, use it like any other agent skill:
 
 In GitHub Copilot CLI you may need to run `/skills reload` after the file is written so the new skill appears in `/skills list`. Claude Code and Amp pick it up on the next session.
 
+### Remote Docling for technical PDFs
+
+To reuse an existing docling-serve v1 service without installing local Docling:
+
+```bash
+python3 scripts/extract.py book.pdf --mode technical --docling-url http://localhost:5001
+# Or configure the agent's environment before running /book-to-skill:
+export BOOK_TO_SKILL_DOCLING_URL=http://localhost:5001
+```
+
+The CLI flag overrides `BOOK_TO_SKILL_DOCLING_URL`. Set
+`BOOK_TO_SKILL_DOCLING_API_KEY` if the server requires an `X-Api-Key` header.
+`--docling-timeout SECONDS` overrides `BOOK_TO_SKILL_DOCLING_TIMEOUT`; the default
+is 300 seconds for blocking socket operations. Choose a timeout and server/proxy
+limits that accommodate the conversion and queue time of a whole book.
+
+Remote extraction uploads each technical PDF to the configured server using the
+v1 JSON file-source API and requests Markdown, table structure, and no OCR, matching
+local Docling. Base URLs may include a proxy path prefix; credentials belong in
+the API-key environment variable. HTTPS uses normal certificate verification;
+redirects are rejected. Files are base64-encoded in memory, so allow additional
+worker memory for large PDFs. Async polling is not supported in this version.
+
+Text mode and other formats still use local extraction. Without a URL, technical
+PDFs still use local Docling. Remote mode does not prompt to install local PDF
+packages. If conversion fails, times out, returns partial results, or produces no
+Markdown, a warning reports fallback to any installed PDF text extractor. Metadata
+records `docling_remote` on success or `docling_remote_failed` as the fallback
+reason. If no text extractor is installed, that source fails extraction. Scanned
+PDFs still require OCR first. `--check` reports remote configuration without
+contacting the server; other PDF entries describe optional local fallbacks.
+
 ---
 
 ## 💬 What people do with it

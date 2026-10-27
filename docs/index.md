@@ -41,7 +41,8 @@ Turn any book or document into a structured, on-demand agent skill — named fra
     ---
 
     PDF, EPUB, DOCX, HTML, Markdown, RTF, MOBI/AZW (via Calibre). Extraction runs
-    locally with graceful stdlib fallbacks — no upload, no lock-in.
+    locally by default with graceful stdlib fallbacks; optional remote Docling
+    uploads technical PDFs to your configured server.
 
 -   :material-brain:{ .lg .middle } __Structure, not summaries__
 
